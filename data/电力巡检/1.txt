@@ -1,0 +1,9 @@
+Input:
+What is dangerous about this image?
+
+Output:
+<think>
+Brief reasoning: The image shows a brightly colored kite with a long tail tangled across multiple overhead power lines near a tree. The tail spans several conductors and could be conductive when wet or contain metallic thread. This can bridge phases, cause arcing/short circuits, start a fire, or trip the line. Anyone trying to retrieve the kite risks severe electric shock.
+</think>
+Answer: 
+A kite and its tail are caught across live power lines, potentially bridging multiple conductors. This can cause arcing or short circuits and poses a severe electrocution risk to anyone approaching it. Keep clear and report it to the utility for safe removal.
