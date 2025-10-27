@@ -309,6 +309,43 @@ def build_ui() -> gr.Blocks:
         transform: translateY(-1px);
         box-shadow: 0 10px 18px rgba(108, 92, 231, 0.3);
     }
+
+    /* 顶部右侧消息弹窗 */
+    #toast_box {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 9999;
+        pointer-events: none;
+    }
+    .toast {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid #e8ecff;
+        box-shadow: 0 12px 28px rgba(70, 80, 140, 0.12);
+        border-radius: 14px;
+        padding: 10px 14px;
+        color: #222741;
+        font-weight: 600;
+        pointer-events: auto;
+    }
+    .toast-success {
+        border-color: #c9f1d7;
+        background: linear-gradient(180deg, #ffffff 0%, #f6fff9 100%);
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #dde3ff;
+        border-top-color: #6C5CE7;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
     """
 
     with gr.Blocks(
@@ -323,9 +360,12 @@ def build_ui() -> gr.Blocks:
         </div>
         """)
 
+        # 右上角消息弹窗容器（初始隐藏）
+        toast_html = gr.HTML("", visible=False, elem_id="toast_box")
+
         with gr.Group(elem_classes="flow-card"):
             flow_img = gr.Image(
-                value=r"C:\Users\Aiwensile\Desktop\图片1(1).png",  #change to your local path
+                value=r"C:\Users\Aiwensile\Desktop\图片1(1).png",  # change to your local path
                 label="概览图",
                 interactive=False,
                 show_download_button=False,
@@ -386,8 +426,27 @@ def build_ui() -> gr.Blocks:
                         clear_btn = gr.Button("清空输出")
                     output_text = gr.Textbox(lines=16, label="输出")
 
-        # 加载模型（Mock）
-        load_btn.click(load_llm, inputs=[model_path], outputs=[state_llm, load_info])
+        # 加载模型（带状态与右上角弹窗）
+        def handle_load(m_path: str):
+            # 第一次更新：左侧状态 + 右上角转圈弹窗
+            spinner_msg = "<div class='toast'><div class='spinner'></div><div>正在加载模型...</div></div>"
+            yield None, "状态：正在加载...", gr.update(value=spinner_msg, visible=True)
+
+            # 模拟等待
+            time.sleep(1.2)
+
+            # 实际加载（Mock）
+            state, info = load_llm(m_path)
+
+            # 第二次更新：左侧状态 + 右上角成功弹窗
+            success_msg = "<div class='toast toast-success'><div>✅</div><div>模型加载成功</div></div>"
+            yield state, info, gr.update(value=success_msg, visible=True)
+
+            # 片刻后收起弹窗
+            time.sleep(1.6)
+            yield state, info, gr.update(value="", visible=False)
+
+        load_btn.click(handle_load, inputs=[model_path], outputs=[state_llm, load_info, toast_html])
 
         # 切换输入栏可见性
         def toggle_inputs(selection: List[str]):
