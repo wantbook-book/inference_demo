@@ -8,7 +8,5 @@ The IEEE 33-bus network initially includes several tie lines (e.g., 8–21, 9–
 </think> 
 
 Answer:
-The optimal open switch set that minimizes system loss is:
-Open Switch Set = {(7, 8), (9, 10), (14, 15), (25, 29), (32, 33)}
-This configuration breaks all meshed loops while preserving full supply to every load bus.
-After reconfiguration, total active power loss is reduced by approximately 28.8 %, voltage profile becomes flatter (minimum bus voltage ≈ 0.977 p.u.), and network operation remains fully radial and balanced.
+The optimal open switch set that minimizes system loss is: Open Switch Set = {(7, 8), (9, 10), (14, 15), (25, 29), (32, 33)}
+This configuration breaks all meshed loops while preserving full supply to every load bus. After reconfiguration, total active power loss is reduced by approximately 28.8 %, voltage profile becomes flatter (minimum bus voltage ≈ 0.977 p.u.), and network operation remains fully radial and balanced.
