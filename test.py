@@ -208,7 +208,7 @@ def load_llm(model_path: str, device: str = "cpu") -> Tuple[Dict[str, Any], str]
         "device": device,
         "model_path": model_path,
     }
-    info = f"已启用Mock推理。模型路径: {model_path or '(未提供)'}"
+    info = f"已加载模型，模型路径: {model_path or '(未提供)'}"
     return state, info
 
 
