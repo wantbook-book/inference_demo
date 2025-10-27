@@ -204,6 +204,7 @@ def find_associated_image(file_obj_or_path: Optional[str]) -> Optional[str]:
     if not file_obj_or_path:
         return None
     try:
+        print(file_obj_or_path)
         filename = os.path.basename(file_obj_or_path)
         base, _ = os.path.splitext(filename)
 
@@ -212,7 +213,7 @@ def find_associated_image(file_obj_or_path: Optional[str]) -> Optional[str]:
 
         cwd_candidates = [os.path.join(os.getcwd(), base + ext) for ext in [".jpg", ".png", ".jpeg"]]
         candidates += cwd_candidates
-
+        print(candidates)
         for c in candidates:
             if os.path.exists(c):
                 return c
@@ -490,74 +491,69 @@ def build_ui() -> gr.Blocks:
                 show_share_button=False,
             )
 
-        # 双列布局：左列占比更小，右列更大
-        with gr.Row():
-            # 左列：模型与参数（缩小比例）
-            with gr.Column(scale=1):
-                with gr.Group(elem_classes="card"):
-                    gr.Markdown("<span class='section-title'>模型配置</span>")
-                    model_path = gr.Textbox(label="模型路径", placeholder="/path/to/model")
-                    # 修改：加载模型按钮添加类名，使用自定义样式
-                    load_btn = gr.Button("加载模型",  elem_classes=["btn-load"])
-                    load_info = gr.Markdown("状态：等待加载")
-                    state_llm = gr.State(value=None)
+        
+        with gr.Group(elem_classes="card"):
+            gr.Markdown("<span class='section-title'>模型配置</span>")
+            model_path = gr.Textbox(label="模型路径", placeholder="/path/to/model")
+            # 修改：加载模型按钮添加类名，使用自定义样式
+            load_btn = gr.Button("加载模型",  elem_classes=["btn-load"])
+            load_info = gr.Markdown("状态：等待加载")
+            state_llm = gr.State(value=None)
 
-                with gr.Group(elem_classes="card"):
-                    gr.Markdown("<span class='section-title'>参数</span>")
-                    temperature = gr.Slider(label="temperature", value=0.7, minimum=0.01, maximum=1.5, step=0.01)
-                    top_p = gr.Slider(label="top_p", value=0.9, minimum=0.01, maximum=1.0, step=0.01)
-                    max_new_tokens = gr.Slider(label="max_new_tokens", value=4096, minimum=32, maximum=4096, step=1)
-                    seed = gr.Number(label="seed", value=-1)
+        with gr.Group(elem_classes="card"):
+            gr.Markdown("<span class='section-title'>参数</span>")
+            temperature = gr.Slider(label="temperature", value=0.7, minimum=0.01, maximum=1.5, step=0.01)
+            top_p = gr.Slider(label="top_p", value=0.9, minimum=0.01, maximum=1.0, step=0.01)
+            max_new_tokens = gr.Slider(label="max_new_tokens", value=4096, minimum=32, maximum=4096, step=1)
+            seed = gr.Number(label="seed", value=-1)
 
-            # 右列：输入与输出（放大比例）
-            with gr.Column(scale=2):
-                with gr.Group(elem_classes="card"):
-                    gr.Markdown("<span class='section-title'>输入选择</span>")
-                    modality_selector = gr.CheckboxGroup(
-                        choices=["图像输入", "图拓扑结构输入", "时序数据输入"],
-                        value=[],
-                        label="选择需要的输入项"
-                    )
+        with gr.Group(elem_classes="card"):
+            gr.Markdown("<span class='section-title'>输入选择</span>")
+            modality_selector = gr.CheckboxGroup(
+                choices=["图像输入", "图拓扑结构输入", "时序数据输入"],
+                value=[],
+                label="选择需要的输入项"
+            )
 
-                with gr.Group(elem_classes="card mono-box") as grp_text:
-                    gr.Markdown("<span class='section-title'>文本</span>")
-                    user_text_file = gr.File(label="上传文本（TXT）", file_types=[".txt"], type="filepath")
-                    user_text = gr.Textbox(lines=8, label="文本内容", elem_classes=["big-label", "pretty-text"])
+        with gr.Group(elem_classes="card mono-box") as grp_text:
+            gr.Markdown("<span class='section-title'>文本</span>")
+            user_text_file = gr.File(label="上传文本（TXT）", file_types=[".txt"], type="filepath")
+            user_text = gr.Textbox(lines=8, label="文本内容", elem_classes=["big-label", "pretty-text"])
 
-                with gr.Group(elem_classes="card", visible=False) as grp_image:
-                    gr.Markdown("<span class='section-title'>图像输入</span>")
-                    image_in = gr.Image(type="pil", label="图像文件")
+        with gr.Group(elem_classes="card", visible=False) as grp_image:
+            gr.Markdown("<span class='section-title'>图像输入</span>")
+            image_in = gr.Image(type="pil", label="图像文件")
 
-                # 图拓扑结构：仅文件选择 + 关联图像预览
-                with gr.Group(elem_classes="card mono-box", visible=False) as grp_graph:
-                    gr.Markdown("<span class='section-title'>图拓扑结构输入</span>")
-                    graph_file = gr.File(label="图文件（JSON/CSV）", file_types=[".json", ".csv"], type="filepath")
-                    graph_image_preview = gr.Image(
-                        label="关联图像预览",
-                        interactive=False,
-                        visible=False,
-                        show_download_button=False,
-                        show_share_button=False
-                    )
+        # 图拓扑结构：仅文件选择 + 关联图像预览
+        with gr.Group(elem_classes="card mono-box", visible=False) as grp_graph:
+            gr.Markdown("<span class='section-title'>图拓扑结构输入</span>")
+            graph_file = gr.File(label="图文件（JSON/CSV）", file_types=[".json", ".csv"], type="filepath")
+            graph_image_preview = gr.Image(
+                label="关联图像预览",
+                interactive=False,
+                visible=False,
+                show_download_button=False,
+                show_share_button=False
+            )
 
-                # 时序数据：仅文件选择 + 关联图像预览
-                with gr.Group(elem_classes="card mono-box", visible=False) as grp_ts:
-                    gr.Markdown("<span class='section-title'>时序数据输入</span>")
-                    ts_file = gr.File(label="时序数据文件（JSON/CSV）", file_types=[".json", ".csv"], type="filepath")
-                    ts_image_preview = gr.Image(
-                        label="关联图像预览",
-                        interactive=False,
-                        visible=False,
-                        show_download_button=False,
-                        show_share_button=False
-                    )
+        # 时序数据：仅文件选择 + 关联图像预览
+        with gr.Group(elem_classes="card mono-box", visible=False) as grp_ts:
+            gr.Markdown("<span class='section-title'>时序数据输入</span>")
+            ts_file = gr.File(label="时序数据文件（JSON/CSV）", file_types=[".json", ".csv"], type="filepath")
+            ts_image_preview = gr.Image(
+                label="关联图像预览",
+                interactive=False,
+                visible=False,
+                show_download_button=False,
+                show_share_button=False
+            )
 
-                with gr.Group(elem_classes="card mono-box"):
-                    with gr.Row(elem_classes="btn-row"):
-                        # 修改：开始推理、清空输出按钮添加类名，使用自定义样式
-                        run_btn = gr.Button("开始推理", elem_classes=["btn-run"])
-                        clear_btn = gr.Button("清空输出", elem_classes=["btn-clear"])
-                    output_text = gr.Textbox(lines=16, label="输出结果", elem_classes=["big-label", "pretty-output"])
+        with gr.Group(elem_classes="card mono-box"):
+            with gr.Row(elem_classes="btn-row"):
+                # 修改：开始推理、清空输出按钮添加类名，使用自定义样式
+                run_btn = gr.Button("开始推理", elem_classes=["btn-run"])
+                clear_btn = gr.Button("清空输出", elem_classes=["btn-clear"])
+            output_text = gr.Textbox(lines=16, label="输出结果", elem_classes=["big-label", "pretty-output"])
 
         # 加载模型：使用 gr.Info + 进度条，完成后再显示“成功”与详细信息
         def handle_load(m_path: str, current_state, progress=gr.Progress(track_tqdm=True)):
@@ -621,8 +617,10 @@ def build_ui() -> gr.Blocks:
         def on_graph_file_change(g_file_path: Optional[str]):
             img_path = find_associated_image(g_file_path)
             if img_path:
+                print('find', img_path)
                 return gr.update(value=img_path, visible=True)
             else:
+                print('not find', img_path)
                 return gr.update(value=None, visible=False)
         graph_file.change(on_graph_file_change, inputs=[graph_file], outputs=[graph_image_preview])
 
@@ -630,8 +628,10 @@ def build_ui() -> gr.Blocks:
         def on_ts_file_change(t_file_path: Optional[str]):
             img_path = find_associated_image(t_file_path)
             if img_path:
+                print('find', img_path)
                 return gr.update(value=img_path, visible=True)
             else:
+                print('not find', img_path)
                 return gr.update(value=None, visible=False)
         ts_file.change(on_ts_file_change, inputs=[ts_file], outputs=[ts_image_preview])
 
