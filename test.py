@@ -1,8 +1,10 @@
+
 import os
 import json
 import csv
 import random
 import time
+import traceback
 from typing import List, Tuple, Optional, Dict, Any
 
 import gradio as gr
@@ -155,7 +157,6 @@ def parse_io_text(content: str) -> Tuple[str, str]:
         low = stripped.lower()
         if low.startswith("input:"):
             mode = "input"
-            # 同行后半部分
             rest = line.split(":", 1)[1] if ":" in line else ""
             if rest.strip():
                 input_lines.append(rest.strip())
@@ -171,7 +172,6 @@ def parse_io_text(content: str) -> Tuple[str, str]:
         elif mode == "output":
             output_lines.append(line)
         else:
-            # 未进入任何段，忽略
             pass
     return "\n".join(input_lines).strip(), "\n".join(output_lines).strip()
 
@@ -198,6 +198,29 @@ def find_paired_output_file(user_text_file: Optional[gr.File]) -> Optional[str]:
         return None
 
 
+# ---------------- 关联图像查找 ----------------
+
+def find_associated_image(file_obj_or_path: Optional[str]) -> Optional[str]:
+    if not file_obj_or_path:
+        return None
+    try:
+        filename = os.path.basename(file_obj_or_path)
+        base, _ = os.path.splitext(filename)
+
+        folder = os.path.dirname(file_obj_or_path)
+        candidates = [os.path.join(folder, base + ext) for ext in [".jpg", ".png", ".jpeg"]]
+
+        cwd_candidates = [os.path.join(os.getcwd(), base + ext) for ext in [".jpg", ".png", ".jpeg"]]
+        candidates += cwd_candidates
+
+        for c in candidates:
+            if os.path.exists(c):
+                return c
+    except Exception:
+        pass
+    return None
+
+
 # ---------------- 模型加载（Mock） ----------------
 
 def load_llm(model_path: str, device: str = "cpu") -> Tuple[Dict[str, Any], str]:
@@ -212,11 +235,11 @@ def load_llm(model_path: str, device: str = "cpu") -> Tuple[Dict[str, Any], str]
     return state, info
 
 
-# ---------------- 精美UI构建 ----------------
+# ---------------- 精美UI构建（双列布局 + 字体增强） ----------------
 
 def build_ui() -> gr.Blocks:
     theme = gr.themes.Soft(primary_hue="violet", secondary_hue="indigo").set(
-        body_text_color="#121322",
+        body_text_color="#101323",
         background_fill_primary="#f5f7ff",
         button_primary_background_fill="#6C5CE7",
         button_primary_text_color="#ffffff",
@@ -226,9 +249,19 @@ def build_ui() -> gr.Blocks:
 
     css = """
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    :root {
+        --font-size-base: 16px;
+        --font-size-large: 18px;
+        --font-size-xlarge: 22px;
+        --font-size-hero: 42px;
+    }
 
     body {
-        font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-family: 'Noto Sans SC', 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-size: var(--font-size-base);
         background:
           radial-gradient(900px 540px at 10% -10%, #e6e7ff 0%, #f7f8ff 40%, #ffffff 100%),
           linear-gradient(120deg, #eef1ff 0%, #fbfcff 50%, #ffffff 100%);
@@ -237,6 +270,7 @@ def build_ui() -> gr.Blocks:
         width: min(96vw, 1480px) !important;
         margin: 0 auto !important;
         padding: 0 8px !important;
+        font-size: var(--font-size-base);
     }
 
     .hero {
@@ -244,11 +278,16 @@ def build_ui() -> gr.Blocks:
         background: radial-gradient(1000px 500px at 0% 0%, #9b8cf6 0%, #6C5CE7 35%, #5a67d8 70%, #4fa3e3 100%);
         color: white;
         border-radius: 28px;
-        padding: 32px 34px;
+        padding: 36px 38px;
         margin-bottom: 22px;
         overflow: hidden;
     }
-    .hero h1 { font-size: 32px; letter-spacing: 0.2px; margin: 0; }
+    .hero h1 {
+        font-size: var(--font-size-hero);
+        font-weight: 900;
+        letter-spacing: 0.4px;
+        margin: 0;
+    }
     .hero::before, .hero::after {
         content: '';
         position: absolute;
@@ -275,7 +314,7 @@ def build_ui() -> gr.Blocks:
     .card {
         background: rgba(255, 255, 255, 0.9);
         border-radius: 20px;
-        padding: 16px;
+        padding: 18px;
         box-shadow: 0 18px 40px rgba(40, 50, 80, 0.08);
         border: 1px solid rgba(190, 200, 255, 0.6);
         backdrop-filter: blur(8px);
@@ -289,27 +328,108 @@ def build_ui() -> gr.Blocks:
         margin-bottom: 14px;
     }
     .section-title {
-        font-weight: 800; font-size: 16px; color: #222741;
-        display: inline-block; margin-bottom: 8px;
-        border-bottom: 3px solid #6C5CE7; padding-bottom: 4px;
+        font-weight: 900;
+        font-size: var(--font-size-xlarge);
+        color: #1f2547;
+        display: inline-block;
+        margin-bottom: 10px;
+        border-bottom: 4px solid #6C5CE7;
+        padding-bottom: 6px;
+        letter-spacing: 0.3px;
     }
 
+    /* 标签字体整体放大 */
+    .gradio-container .label, .gradio-container label {
+        font-size: var(--font-size-large) !important;
+        font-weight: 700 !important;
+        color: #1d2341;
+        letter-spacing: 0.2px;
+    }
+    .gradio-container .checklist .item label,
+    .gradio-container .checkbox label,
+    .gradio-container .radio label,
+    .gradio-container .wrap .item label {
+        font-size: var(--font-size-large) !important;
+        font-weight: 700 !important;
+    }
+
+    /* 进一步确保特定组件标签（如“文本内容”“输出结果”）更大 */
+    .big-label .label, .big-label label {
+        font-size: calc(var(--font-size-large) * 1.05) !important;
+        font-weight: 800 !important;
+    }
+
+    /* 文本框内容英文字体更美观，略微增大 */
     .mono-box textarea, .mono-box input {
         font-family: 'Inter', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        line-height: 1.5; font-size: 14px;
+        line-height: 1.6;
+        font-size: 15.8px;
         border-radius: 14px !important;
         border: 1px solid #e1e6ff !important;
         background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,255,0.96));
     }
-
-    .btn-row { gap: 12px; }
-    button.svelte-1ipelgc { transition: all 0.2s ease; }
-    button.svelte-1ipelgc:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 18px rgba(108, 92, 231, 0.3);
+    .pretty-text textarea, .pretty-output textarea {
+        font-family: 'JetBrains Mono', 'Inter', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+        font-size: 16.6px !important;
+        line-height: 1.72 !important;
+        letter-spacing: 0.2px !important;
     }
 
-    /* 顶部右侧消息弹窗 */
+    .btn-row { gap: 12px; }
+
+    /* ============ 新增：三类按钮的统一美化（加载模型、开始推理、清空输出） ============ */
+
+    .btn-load, .btn-run, .btn-clear {
+    border-radius: 12px !important;
+    font-size: var(--font-size-large) !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 12px 24px rgba(70, 80, 140, 0.12) !important;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+    }
+    .btn-load > button, .btn-run > button, .btn-clear > button { /* 兼容“外层容器 + 内部 button”结构 */
+    border-radius: 12px !important;
+    font-size: var(--font-size-large) !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 12px 24px rgba(70, 80, 140, 0.12) !important;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+    }
+
+
+    .btn-load, .btn-load > button {
+    background: linear-gradient(90deg, #4FA3E3 0%, #6C5CE7 100%) !important;
+    }
+    .btn-run, .btn-run > button {
+    background: linear-gradient(90deg, #6C5CE7 0%, #5A67D8 100%) !important;
+    }
+    .btn-clear, .btn-clear > button {
+    background: linear-gradient(90deg, #5EA9F8 0%, #8A79FF 100%) !important;
+    }
+
+
+    .btn-load:hover, .btn-run:hover, .btn-clear:hover,
+    .btn-load > button:hover, .btn-run > button:hover, .btn-clear > button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 16px 30px rgba(108, 92, 231, 0.30) !important;
+    filter: brightness(1.03) !important;
+    }
+    .btn-load:active, .btn-run:active, .btn-clear:active,
+    .btn-load > button:active, .btn-run > button:active, .btn-clear > button:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 8px 18px rgba(108, 92, 231, 0.25) !important;
+    filter: brightness(0.98) !important;
+    }
+    .btn-load:focus-visible, .btn-run:focus-visible, .btn-clear:focus-visible,
+    .btn-load > button:focus-visible, .btn-run > button:focus-visible, .btn-clear > button:focus-visible {
+    outline: 2px solid rgba(108, 92, 231, 0.66) !important;
+    outline-offset: 2px !important;
+    }
+    
+
+    /* 顶部右侧消息弹窗（保留样式） */
     #toast_box {
         position: fixed;
         top: 16px;
@@ -327,8 +447,9 @@ def build_ui() -> gr.Blocks:
         border-radius: 14px;
         padding: 10px 14px;
         color: #222741;
-        font-weight: 600;
+        font-weight: 800;
         pointer-events: auto;
+        font-size: var(--font-size-large);
     }
     .toast-success {
         border-color: #c9f1d7;
@@ -345,6 +466,7 @@ def build_ui() -> gr.Blocks:
     @keyframes spin {
         to { transform: rotate(360deg); }
     }
+    
     """
 
     with gr.Blocks(
@@ -359,88 +481,117 @@ def build_ui() -> gr.Blocks:
         </div>
         """)
 
-        # 右上角消息弹窗容器（初始隐藏）
-        toast_html = gr.HTML("", visible=False, elem_id="toast_box")
-
         with gr.Group(elem_classes="flow-card"):
             flow_img = gr.Image(
-                value=r"./图片1(1).png",  #change to your local path
-                label="概览图",
+                value=r"./图片1(1).png",
+                label="系统概览图",
                 interactive=False,
                 show_download_button=False,
                 show_share_button=False,
             )
-        # 左侧：模型与参数
-        with gr.Group(elem_classes="card"):
-            gr.Markdown("<span class='section-title'>模型配置</span>")
-            model_path = gr.Textbox(label="模型路径", placeholder="/path/to/model")
-            load_btn = gr.Button("加载模型", variant="primary")
-            load_info = gr.Markdown("状态：等待加载")
-            state_llm = gr.State(value=None)
-        with gr.Group(elem_classes="card"):
-            gr.Markdown("<span class='section-title'>参数</span>")
-            temperature = gr.Slider(label="temperature", value=0.7, minimum=0.01, maximum=1.5, step=0.01)
-            top_p = gr.Slider(label="top_p", value=0.9, minimum=0.01, maximum=1.0, step=0.01)
-            max_new_tokens = gr.Slider(label="max_new_tokens", value=4096, minimum=32, maximum=4096, step=1)
-            seed = gr.Number(label="seed", value=-1)
 
-        # 右侧：输入与输出
-        with gr.Group(elem_classes="card"):
-            gr.Markdown("<span class='section-title'>输入选择</span>")
-            modality_selector = gr.CheckboxGroup(
-                choices=["图像输入", "图拓扑结构输入", "时序数据输入"],
-                value=[],
-                label="选择需要的输入项"
-            )
+        # 双列布局：左列占比更小，右列更大
+        with gr.Row():
+            # 左列：模型与参数（缩小比例）
+            with gr.Column(scale=1):
+                with gr.Group(elem_classes="card"):
+                    gr.Markdown("<span class='section-title'>模型配置</span>")
+                    model_path = gr.Textbox(label="模型路径", placeholder="/path/to/model")
+                    # 修改：加载模型按钮添加类名，使用自定义样式
+                    load_btn = gr.Button("加载模型",  elem_classes=["btn-load"])
+                    load_info = gr.Markdown("状态：等待加载")
+                    state_llm = gr.State(value=None)
 
-        with gr.Group(elem_classes="card mono-box") as grp_text:
-            gr.Markdown("<span class='section-title'>文本</span>")
-            user_text_file = gr.File(label="上传文本TXT", file_types=[".txt"], type="filepath")
-            user_text = gr.Textbox(lines=8, label="文本")
+                with gr.Group(elem_classes="card"):
+                    gr.Markdown("<span class='section-title'>参数</span>")
+                    temperature = gr.Slider(label="temperature", value=0.7, minimum=0.01, maximum=1.5, step=0.01)
+                    top_p = gr.Slider(label="top_p", value=0.9, minimum=0.01, maximum=1.0, step=0.01)
+                    max_new_tokens = gr.Slider(label="max_new_tokens", value=4096, minimum=32, maximum=4096, step=1)
+                    seed = gr.Number(label="seed", value=-1)
 
-        with gr.Group(elem_classes="card", visible=False) as grp_image:
-            gr.Markdown("<span class='section-title'>图像输入</span>")
-            image_in = gr.Image(type="pil", label="图像文件")
+            # 右列：输入与输出（放大比例）
+            with gr.Column(scale=2):
+                with gr.Group(elem_classes="card"):
+                    gr.Markdown("<span class='section-title'>输入选择</span>")
+                    modality_selector = gr.CheckboxGroup(
+                        choices=["图像输入", "图拓扑结构输入", "时序数据输入"],
+                        value=[],
+                        label="选择需要的输入项"
+                    )
 
-        with gr.Group(elem_classes="card mono-box", visible=False) as grp_graph:
-            gr.Markdown("<span class='section-title'>图拓扑结构输入</span>")
-            graph_file = gr.File(label="图文件（JSON/CSV/TXT）", type="filepath")
-            graph_text_file = gr.File(label="图边TXT文件", file_types=[".txt"], type="filepath")
-            graph_text = gr.Textbox(lines=6, label="图边文本")
+                with gr.Group(elem_classes="card mono-box") as grp_text:
+                    gr.Markdown("<span class='section-title'>文本</span>")
+                    user_text_file = gr.File(label="上传文本（TXT）", file_types=[".txt"], type="filepath")
+                    user_text = gr.Textbox(lines=8, label="文本内容", elem_classes=["big-label", "pretty-text"])
 
-        with gr.Group(elem_classes="card mono-box", visible=False) as grp_ts:
-            gr.Markdown("<span class='section-title'>时序数据输入</span>")
-            ts_file = gr.File(label="时序数据文件（JSON/CSV/TXT）", type="filepath")
-            ts_text_file = gr.File(label="时序TXT文件", file_types=[".txt"], type="filepath")
-            ts_text = gr.Textbox(lines=4, label="时序数据")
+                with gr.Group(elem_classes="card", visible=False) as grp_image:
+                    gr.Markdown("<span class='section-title'>图像输入</span>")
+                    image_in = gr.Image(type="pil", label="图像文件")
 
-        with gr.Group(elem_classes="card mono-box"):
-            with gr.Row(elem_classes="btn-row"):
-                run_btn = gr.Button("开始推理", variant="primary")
-                clear_btn = gr.Button("清空输出")
-            output_text = gr.Textbox(lines=16, label="输出")
+                # 图拓扑结构：仅文件选择 + 关联图像预览
+                with gr.Group(elem_classes="card mono-box", visible=False) as grp_graph:
+                    gr.Markdown("<span class='section-title'>图拓扑结构输入</span>")
+                    graph_file = gr.File(label="图文件（JSON/CSV）", file_types=[".json", ".csv"], type="filepath")
+                    graph_image_preview = gr.Image(
+                        label="关联图像预览",
+                        interactive=False,
+                        visible=False,
+                        show_download_button=False,
+                        show_share_button=False
+                    )
 
-        # 加载模型（带状态与右上角弹窗）
-        def handle_load(m_path: str):
-            # 第一次更新：左侧状态 + 右上角转圈弹窗
-            spinner_msg = "<div class='toast'><div class='spinner'></div><div>正在加载模型...</div></div>"
-            yield None, "状态：正在加载...", gr.update(value=spinner_msg, visible=True)
+                # 时序数据：仅文件选择 + 关联图像预览
+                with gr.Group(elem_classes="card mono-box", visible=False) as grp_ts:
+                    gr.Markdown("<span class='section-title'>时序数据输入</span>")
+                    ts_file = gr.File(label="时序数据文件（JSON/CSV）", file_types=[".json", ".csv"], type="filepath")
+                    ts_image_preview = gr.Image(
+                        label="关联图像预览",
+                        interactive=False,
+                        visible=False,
+                        show_download_button=False,
+                        show_share_button=False
+                    )
 
-            # 模拟等待
-            time.sleep(1.2)
+                with gr.Group(elem_classes="card mono-box"):
+                    with gr.Row(elem_classes="btn-row"):
+                        # 修改：开始推理、清空输出按钮添加类名，使用自定义样式
+                        run_btn = gr.Button("开始推理", elem_classes=["btn-run"])
+                        clear_btn = gr.Button("清空输出", elem_classes=["btn-clear"])
+                    output_text = gr.Textbox(lines=16, label="输出结果", elem_classes=["big-label", "pretty-output"])
 
-            # 实际加载（Mock）
-            state, info = load_llm(m_path)
+        # 加载模型：使用 gr.Info + 进度条，完成后再显示“成功”与详细信息
+        def handle_load(m_path: str, current_state, progress=gr.Progress(track_tqdm=True)):
+            try:
+                # 顶部右侧提示
+                gr.Info("🔄 正在加载模型，请稍候...")
+                # 立刻将状态区域置为“正在加载...”，不显示成功信息
+                yield current_state, "状态：正在加载..."
 
-            # 第二次更新：左侧状态 + 右上角成功弹窗
-            success_msg = "<div class='toast toast-success'><div>✅</div><div>模型加载成功</div></div>"
-            yield state, info, gr.update(value=success_msg, visible=True)
+                # 释放之前的模型（如有）
+                try:
+                    if current_state is not None:
+                        del current_state
+                        import torch
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                except Exception:
+                    pass
 
-            # 片刻后收起弹窗
-            time.sleep(1.6)
-            yield state, info, gr.update(value="", visible=False)
+                # 模拟可视化加载进度（顶部全局进度条）
+                steps = 8
+                for i in range(steps):
+                    progress((i + 1) / steps, desc="Loading...")
+                    time.sleep(0.18)
 
-        load_btn.click(handle_load, inputs=[model_path], outputs=[state_llm, load_info, toast_html])
+                # 实际加载
+                state, info = load_llm(m_path or "")
+
+                # 进度“跑完后”才输出成功信息
+                yield state, f"✅ 模型加载成功\n{info}"
+            except Exception as e:
+                yield current_state, f"❌ 模型加载失败: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+
+        load_btn.click(handle_load, inputs=[model_path, state_llm], outputs=[state_llm, load_info])
 
         # 切换输入栏可见性
         def toggle_inputs(selection: List[str]):
@@ -462,21 +613,37 @@ def build_ui() -> gr.Blocks:
         # 上传文本TXT后，自动将 Input: 内容填入文本框
         def load_user_text(u_text_file):
             in_text, out_text = parse_io_file(u_text_file)
-            # 若未找到Input段，回退为文件全文
             value = in_text if in_text else read_txt_file_content(u_text_file)
             return gr.update(value=value or "")
         user_text_file.change(load_user_text, inputs=[user_text_file], outputs=[user_text])
+
+        # 图拓扑文件改变时，自动加载同名 jpg/png 关联图像
+        def on_graph_file_change(g_file_path: Optional[str]):
+            img_path = find_associated_image(g_file_path)
+            if img_path:
+                return gr.update(value=img_path, visible=True)
+            else:
+                return gr.update(value=None, visible=False)
+        graph_file.change(on_graph_file_change, inputs=[graph_file], outputs=[graph_image_preview])
+
+        # 时序文件改变时，自动加载同名 jpg/png 关联图像
+        def on_ts_file_change(t_file_path: Optional[str]):
+            img_path = find_associated_image(t_file_path)
+            if img_path:
+                return gr.update(value=img_path, visible=True)
+            else:
+                return gr.update(value=None, visible=False)
+        ts_file.change(on_ts_file_change, inputs=[ts_file], outputs=[ts_image_preview])
 
         # 增量输出逻辑：严格使用TXT内 Output: 段；如缺失则按配对文件；仍缺失则空输出
         def on_run_stream(st_llm,
                           selection: List[str],
                           img,
-                          g_file, g_text_file, g_text_manual,
-                          t_file, t_text_file, t_text_manual,
+                          g_file,
+                          t_file,
                           u_text_file, u_text_manual,
                           temp, tp, mnt, sd):
 
-            # 随机种子（演示）
             seed_val = int(sd) if sd is not None else -1
             if seed_val is not None and seed_val >= 0:
                 random.seed(seed_val)
@@ -486,10 +653,8 @@ def build_ui() -> gr.Blocks:
                 except Exception:
                     pass
 
-            # 解析上传TXT的 Input/Output 段
             input_text, output_text_src = parse_io_file(u_text_file)
 
-            # 输出优先使用 Output 段；若无则尝试配对同名输出文件
             if not output_text_src:
                 paired = find_paired_output_file(u_text_file)
                 if paired and os.path.exists(paired):
@@ -499,10 +664,8 @@ def build_ui() -> gr.Blocks:
                     except Exception:
                         output_text_src = ""
 
-            # 仍无则输出为空（不再加入任何占位或摘要）
             output_text_src = output_text_src or ""
 
-            # 逐字增量输出
             acc = ""
             try:
                 limit = max(64, min(len(output_text_src), int(mnt)))
@@ -514,15 +677,14 @@ def build_ui() -> gr.Blocks:
                 sleep_t = max(0.002, 0.016 - (float(temp) - 0.01) * 0.009 + (float(tp) - 0.01) * 0.004)
                 time.sleep(sleep_t)
 
-        # 事件绑定（包含模型状态）
         run_btn.click(
             on_run_stream,
             inputs=[
                 state_llm,
                 modality_selector,
                 image_in,
-                graph_file, graph_text_file, graph_text,
-                ts_file, ts_text_file, ts_text,
+                graph_file,
+                ts_file,
                 user_text_file, user_text,
                 temperature, top_p, max_new_tokens, seed
             ],
@@ -543,4 +705,3 @@ if __name__ == "__main__":
     except TypeError:
         pass
     app.launch(server_name="0.0.0.0", server_port=7860, show_error=True)
-
