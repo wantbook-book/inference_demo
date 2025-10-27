@@ -1,0 +1,10 @@
+Input: 
+Which part of the topology is most vulnerable to voltage collapse?
+
+
+Output:  
+<think> 
+Voltage collapse is most likely near the longest chain or weakest segment far from the source. The path 2–3–4–5–6–26–27–28–29–30–31–32–33–18 forms an extended feeder with multiple loads and fewer alternate paths. Its impedance is higher and regulation weaker. 
+</think> 
+Answer:
+ The segment from node 6 through 33 (the southern feeder chain) is the most voltage-sensitive region. It experiences cumulative line drops and limited voltage support. In a heavy-load condition or line fault upstream, buses 28–33 are prone to undervoltage and may trigger voltage collapse if reactive compensation is insufficient.
