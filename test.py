@@ -246,7 +246,6 @@ def build_ui() -> gr.Blocks:
         border-radius: 28px;
         padding: 32px 34px;
         margin-bottom: 22px;
-        box-shadow: 0 30px 64px rgba(80, 65, 200, 0.25);
         overflow: hidden;
     }
     .hero h1 { font-size: 32px; letter-spacing: 0.2px; margin: 0; }
@@ -325,66 +324,61 @@ def build_ui() -> gr.Blocks:
 
         with gr.Group(elem_classes="flow-card"):
             flow_img = gr.Image(
-                value=r"C:\Users\Aiwensile\Desktop\图片1(1).png",  #change to your local path
+                value=r"./图片1(1).png",  #change to your local path
                 label="概览图",
                 interactive=False,
                 show_download_button=False,
                 show_share_button=False,
             )
+        # 左侧：模型与参数
+        with gr.Group(elem_classes="card"):
+            gr.Markdown("<span class='section-title'>模型配置</span>")
+            model_path = gr.Textbox(label="模型路径", placeholder="/path/to/model")
+            load_btn = gr.Button("加载模型", variant="primary")
+            load_info = gr.Markdown("状态：等待加载")
+            state_llm = gr.State(value=None)
+        with gr.Group(elem_classes="card"):
+            gr.Markdown("<span class='section-title'>参数</span>")
+            temperature = gr.Slider(label="temperature", value=0.7, minimum=0.01, maximum=1.5, step=0.01)
+            top_p = gr.Slider(label="top_p", value=0.9, minimum=0.01, maximum=1.0, step=0.01)
+            max_new_tokens = gr.Slider(label="max_new_tokens", value=4096, minimum=32, maximum=4096, step=1)
+            seed = gr.Number(label="seed", value=-1)
 
-        with gr.Row():
-            # 左侧：模型与参数
-            with gr.Column(scale=1):
-                with gr.Group(elem_classes="card"):
-                    gr.Markdown("<span class='section-title'>模型配置</span>")
-                    model_path = gr.Textbox(label="模型路径", placeholder="/path/to/model")
-                    load_btn = gr.Button("加载模型", variant="primary")
-                    load_info = gr.Markdown("状态：等待加载")
-                    state_llm = gr.State(value=None)
+        # 右侧：输入与输出
+        with gr.Group(elem_classes="card"):
+            gr.Markdown("<span class='section-title'>输入选择</span>")
+            modality_selector = gr.CheckboxGroup(
+                choices=["图像输入", "图拓扑结构输入", "时序数据输入"],
+                value=[],
+                label="选择需要的输入项"
+            )
 
-                with gr.Group(elem_classes="card"):
-                    gr.Markdown("<span class='section-title'>参数</span>")
-                    temperature = gr.Slider(label="temperature", value=0.7, minimum=0.01, maximum=1.5, step=0.01)
-                    top_p = gr.Slider(label="top_p", value=0.9, minimum=0.01, maximum=1.0, step=0.01)
-                    max_new_tokens = gr.Slider(label="max_new_tokens", value=4096, minimum=32, maximum=4096, step=1)
-                    seed = gr.Number(label="seed", value=-1)
+        with gr.Group(elem_classes="card mono-box") as grp_text:
+            gr.Markdown("<span class='section-title'>文本</span>")
+            user_text_file = gr.File(label="上传文本TXT", file_types=[".txt"], type="filepath")
+            user_text = gr.Textbox(lines=8, label="文本")
 
-            # 右侧：输入与输出
-            with gr.Column(scale=2):
-                with gr.Group(elem_classes="card"):
-                    gr.Markdown("<span class='section-title'>输入选择</span>")
-                    modality_selector = gr.CheckboxGroup(
-                        choices=["图像输入", "图拓扑结构输入", "时序数据输入"],
-                        value=[],
-                        label="选择需要的输入项"
-                    )
+        with gr.Group(elem_classes="card", visible=False) as grp_image:
+            gr.Markdown("<span class='section-title'>图像输入</span>")
+            image_in = gr.Image(type="pil", label="图像文件")
 
-                with gr.Group(elem_classes="card mono-box") as grp_text:
-                    gr.Markdown("<span class='section-title'>文本</span>")
-                    user_text_file = gr.File(label="上传文本TXT", file_types=[".txt"], type="filepath")
-                    user_text = gr.Textbox(lines=8, label="文本")
+        with gr.Group(elem_classes="card mono-box", visible=False) as grp_graph:
+            gr.Markdown("<span class='section-title'>图拓扑结构输入</span>")
+            graph_file = gr.File(label="图文件（JSON/CSV/TXT）", type="filepath")
+            graph_text_file = gr.File(label="图边TXT文件", file_types=[".txt"], type="filepath")
+            graph_text = gr.Textbox(lines=6, label="图边文本")
 
-                with gr.Group(elem_classes="card", visible=False) as grp_image:
-                    gr.Markdown("<span class='section-title'>图像输入</span>")
-                    image_in = gr.Image(type="pil", label="图像文件")
+        with gr.Group(elem_classes="card mono-box", visible=False) as grp_ts:
+            gr.Markdown("<span class='section-title'>时序数据输入</span>")
+            ts_file = gr.File(label="时序数据文件（JSON/CSV/TXT）", type="filepath")
+            ts_text_file = gr.File(label="时序TXT文件", file_types=[".txt"], type="filepath")
+            ts_text = gr.Textbox(lines=4, label="时序数据")
 
-                with gr.Group(elem_classes="card mono-box", visible=False) as grp_graph:
-                    gr.Markdown("<span class='section-title'>图拓扑结构输入</span>")
-                    graph_file = gr.File(label="图文件（JSON/CSV/TXT）", type="filepath")
-                    graph_text_file = gr.File(label="图边TXT文件", file_types=[".txt"], type="filepath")
-                    graph_text = gr.Textbox(lines=6, label="图边文本")
-
-                with gr.Group(elem_classes="card mono-box", visible=False) as grp_ts:
-                    gr.Markdown("<span class='section-title'>时序数据输入</span>")
-                    ts_file = gr.File(label="时序数据文件（JSON/CSV/TXT）", type="filepath")
-                    ts_text_file = gr.File(label="时序TXT文件", file_types=[".txt"], type="filepath")
-                    ts_text = gr.Textbox(lines=4, label="时序数据")
-
-                with gr.Group(elem_classes="card mono-box"):
-                    with gr.Row(elem_classes="btn-row"):
-                        run_btn = gr.Button("开始推理", variant="primary")
-                        clear_btn = gr.Button("清空输出")
-                    output_text = gr.Textbox(lines=16, label="输出")
+        with gr.Group(elem_classes="card mono-box"):
+            with gr.Row(elem_classes="btn-row"):
+                run_btn = gr.Button("开始推理", variant="primary")
+                clear_btn = gr.Button("清空输出")
+            output_text = gr.Textbox(lines=16, label="输出")
 
         # 加载模型（Mock）
         load_btn.click(load_llm, inputs=[model_path], outputs=[state_llm, load_info])
